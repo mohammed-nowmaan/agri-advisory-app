@@ -1,34 +1,41 @@
+import streamlit as st
 import joblib
 import pickle
+import numpy as np
 import os
 
-MODEL_PATH = os.path.join(os.path.dirname(__file__), '..', 'backend', 'models', 'crop_recommendation_model.pkl')
-LE_PATH = os.path.join(os.path.dirname(__file__), '..', 'backend', 'models', 'label_encoder.pkl')
+# Paths to model files
+MODEL_PATH = '../backend/models/crop_recommendation_model.pkl'
+ENCODER_PATH = '../backend/models/label_encoder.pkl'
 
+# Function to safely load model
 def _safe_load_model(path):
     if not os.path.exists(path):
         raise FileNotFoundError(f"Model file not found: {path}")
-    # Try joblib first (works for joblib and many pickle files)
-    try:
-        return joblib.load(path)
-    except Exception:
-        # Fallback to pickle
-        with open(path, 'rb') as f:
-            return pickle.load(f)
+    return joblib.load(path)
 
-
-# Load trained model
+# Load model
 model = _safe_load_model(MODEL_PATH)
 
-# Load LabelEncoder (try joblib then pickle)
-le = _safe_load_model(LE_PATH)
+# Load LabelEncoder
+with open(ENCODER_PATH, 'rb') as f:
+    le = pickle.load(f)
 
-# Example input: [N, P, K, temperature, humidity, ph, rainfall]
-input_data = [[90, 42, 43, 28, 75, 6.5, 200]]
+# Streamlit app
+st.title("🌱 Crop Recommendation System")
+
+# Input fields
+N = st.number_input("Nitrogen (N)", 0, 140, 90)
+P = st.number_input("Phosphorus (P)", 5, 145, 42)
+K = st.number_input("Potassium (K)", 5, 205, 43)
+temperature = st.number_input("Temperature (°C)", 0.0, 50.0, 28.0)
+humidity = st.number_input("Humidity (%)", 0.0, 100.0, 75.0)
+ph = st.number_input("pH", 0.0, 14.0, 6.5)
+rainfall = st.number_input("Rainfall (mm)", 0.0, 500.0, 200.0)
 
 # Predict
-predicted_label = model.predict(input_data)
-
-# Decode numeric label to crop name
-predicted_crop = le.inverse_transform(predicted_label)
-print(f"Recommended Crop: {predicted_crop[0]}")
+if st.button("Recommend Crop"):
+    input_data = np.array([[N, P, K, temperature, humidity, ph, rainfall]])
+    pred_label = model.predict(input_data)
+    crop = le.inverse_transform(pred_label)
+    st.success(f"🌾 Recommended Crop: {crop[0]}")
